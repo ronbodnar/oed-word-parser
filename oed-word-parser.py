@@ -165,10 +165,10 @@ def get_parsed_content(content):
 
     # Check if there is any mismatch in the lengths of all_words, all_snippets, and all_parts_of_speech
     if len(all_words) != len(all_snippets) and len(all_snippets) != len(all_parts_of_speech):
-        print('List Length Mismatch')
+        return None
     
-    # Outputting the number of words, snippets, and parts of speech found.
-    print(f'Words: {len(all_words)}\tSnippets: {len(all_snippets)}\tParts of Speech: {len(all_parts_of_speech)}')
+    # Outputting the number of words, snippets, and parts of speech found. (make --verbose)
+    #print(f'Words: {len(all_words)}\tSnippets: {len(all_snippets)}\tParts of Speech: {len(all_parts_of_speech)}')
     
     return all_words, all_snippets, all_parts_of_speech
 
@@ -202,8 +202,12 @@ def start_parsing(starting_page, max_pages, request_delay, output_file):
         # Parse the content that was fetched from the webpage.
         parsed_content = get_parsed_content(content)
         
-        # Append the parsed content to the output file.
-        save_parsed_content(output_file, parsed_content, current_page)
+        # Check to see if the content was able to be parsed, if it was save it.
+        if parsed_content is None:
+            print(f'Failed to parse content from page {current_page}. Skipping and moving on...')
+        else:
+            # Append the parsed content to the output file.
+            save_parsed_content(output_file, parsed_content, current_page)
             
         # Increase the current page by one.
         current_page = current_page + 1
