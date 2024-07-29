@@ -57,7 +57,7 @@ def main():
     # Begin parsing with the command-line arguments (or their default values)
     start_parsing(args.starting_page, args.max_pages, args.request_delay, args.output_file)
 
-def fetch_content(page):
+def fetch_content(page, retry = False):
     '''
     Fetch HTML content from the OED search page for a specific page number.
 
@@ -107,9 +107,18 @@ def fetch_content(page):
         print(f'Received content for page {page} in {elapsed_secs:.3f} seconds')
         
         # Handle cases where the response is not OK.
-        if response.status_code != 200:
+        if response.status_code not in [200, 502]:
             print(f"Error occurred: Failed to retrieve content. Status code: {response.status_code}")
             return None
+        
+        if response.status_code == 502:
+            if not retry:
+                print(f"Error occurred: Bad Gateway | Retrying fetch after 60 seconds...")
+                time.sleep(60)
+                return fetch_content(page, True)
+            else:
+                print(f"Retrying to fetch content failed.")
+                return None
         
         # Return the text from the response.
         return response.text
