@@ -44,7 +44,7 @@ To run the script, you need to have Python 3 and the required packages installed
 Run the script using the following command:
 
 ```bash
-python oed-word-parser.py --request-delay 2 --max-pages 100 --starting-page 1 --output-file results.txt
+python3 oed-word-parser.py --request-delay 2 --max-pages 100 --starting-page 1 --output-file results.txt
 ```
 
 **Arguments:**
@@ -59,7 +59,7 @@ python oed-word-parser.py --request-delay 2 --max-pages 100 --starting-page 1 --
 To start parsing from page 1, with a delay of 2 seconds between requests, and save results to `parsed_data.txt`, use:
 
 ```bash
-python oed-word-parser.py --request-delay 2 --max-pages 50 --starting-page 1 --output-file parsed_data.txt
+python3 oed-word-parser.py --request-delay 2 --max-pages 50 --starting-page 1 --output-file parsed_data.txt
 ```
 
 ## Contributing
