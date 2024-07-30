@@ -20,19 +20,18 @@ def main():
     This function serves as the entry point of the script. It prints the command-line arguments provided
     to the script for debugging purposes. The function expects the following optional arguments:
 
-    - `request-delay` (int): Delay between requests in seconds. Default is 1.
-    - `max-pages` (int): Maximum number of pages to parse. Default is infinity (no limit).
-    - `starting-page` (int): The page number to start parsing from. Default is 1.
+    - `request-delay` (int, optional): Delay between requests in seconds (default is 1).
+    - `error-delay` (int, optional): Delay between retrying after an error (default is 60).
+    - `max-retries` (int, optional): Maximum number of retries when encountering an error (default: 1).
+    - `max-pages` (int, optional): Maximum number of pages to process (default is infinity).
+    - `starting-page` (int, optional): The page number to start parsing from (default is 1).
+    - `output-file` (string, optional): The path of the output file to write to (default is output.txt).
+    - `delimiter` (string, optional): The delimiter for the output file (default: `,`)
 
     If any arguments are not provided, the function uses the default values.
 
-    After printing the arguments, it calls the `start_parsing` function to begin the process of fetching,
-    parsing, and saving content.
-
-    Command-line Arguments:
-    - `request-delay` (int, optional): Delay between requests in seconds (default is 1).
-    - `max-pages` (int, optional): Maximum number of pages to process (default is infinity).
-    - `starting-page` (int, optional): The page number to start parsing from (default is 1).
+    It checks to ensure the output-file directory exists, and creates it if it does not.
+    Then, it calls the `start_parsing` function to begin the process of fetching, parsing, and saving content.
 
     Returns:
     None
@@ -42,22 +41,37 @@ def main():
     parser = argparse.ArgumentParser(description='Start the content parsing process.')
 
     # Add optional arguments
-    parser.add_argument('--request-delay', type=int, default=1, 
-                        help='Delay between requests in seconds (default: 1)')
-    parser.add_argument('--max-pages', type=int, default=float('inf'), 
-                        help='Maximum number of pages to parse (default: infinity)')
+    parser.add_argument('--request-delay', type=int, default=2, 
+                        help='Delay between requests in seconds (default: 2)')
+    parser.add_argument('--error-delay', type=int, default=60, 
+                        help='Delay between an error and re-attempt. (default: 60)')
+    parser.add_argument('--max-retries', type=int, default=1, 
+                        help='The maximum number of retries after an error. (default: 1')
+    parser.add_argument('--max-pages', type=int, default=int(1e5),  
+                        help='Maximum number of pages to parse (default: 100,000)')
     parser.add_argument('--starting-page', type=int, default=1, 
                         help='The page number to start parsing from (default: 1)')
     parser.add_argument('--output-file', type=str, default=output_file, 
                         help='The full path of the output file (default: $script_dir/output/oed-word-parser.txt)')
+    parser.add_argument('--delimiter', type=str, default=',', 
+                        help='The delimiter for the output file. (default: `,`')
 
     # Parse the command-line arguments
     args = parser.parse_args()
+    
+    # The output directory for the output file
+    output_directory = os.path.dirname(args.output_file)
+    
+    # If the output directory doesn't exist, create it.
+    if not os.path.exists(output_directory):
+        print(f"Creating output directory at: {output_directory}")
+        os.makedirs(output_directory)
 
     # Begin parsing with the command-line arguments (or their default values)
-    start_parsing(args.starting_page, args.max_pages, args.request_delay, args.output_file)
+    start_parsing(args.starting_page, args.max_pages, args.max_retries, args.request_delay,
+                args.error_delay, args.output_file, args.delimiter)
 
-def fetch_content(page, retry = False):
+def fetch_content(page, error_delay, max_retries, retry = False):
     '''
     Fetch HTML content from the OED search page for a specific page number.
 
@@ -103,22 +117,19 @@ def fetch_content(page, retry = False):
         # Calculate the elapsed response time in seconds.
         elapsed_secs = time.time() - start
         
+        # Handle cases where the response is not 200 (OK).
+        if response.status_code != 200:
+            print(f"Failed to retrieve content for page {page} after {elapsed_secs:.3f} seconds. Status code: {response.status_code}", end="")
+            if not retry:
+                print(f" | Retrying after {error_delay} seconds...")
+                time.sleep(error_delay)
+                return fetch_content(page, error_delay, max_retries, True)
+            else:
+                print(" | Retrying to fetch content failed.")
+                return None
+        
         # Output the elapsed time and the page number.
         print(f'Received content for page {page} in {elapsed_secs:.3f} seconds')
-        
-        # Handle cases where the response is not OK.
-        if response.status_code not in [200, 502]:
-            print(f"Error occurred: Failed to retrieve content. Status code: {response.status_code}")
-            return None
-        
-        if response.status_code == 502:
-            if not retry:
-                print(f"Error occurred: Bad Gateway | Retrying fetch after 60 seconds...")
-                time.sleep(60)
-                return fetch_content(page, True)
-            else:
-                print(f"Retrying to fetch content failed.")
-                return None
         
         # Return the text from the response.
         return response.text
@@ -144,6 +155,9 @@ def get_parsed_content(content):
         - all_parts_of_speech (list of str): List of extracted parts of speech.
     '''
     
+    if content is None:
+        return None
+    
     # Parse the HTML content using BeautifulSoup with the 'lxml' parser
     soup = BeautifulSoup(content, 'lxml')
 
@@ -165,7 +179,7 @@ def get_parsed_content(content):
         # Extract the snippet
         snippet_div = item.find('div', class_='snippet')
         if snippet_div:
-            all_snippets.append(snippet_div.get_text().strip())
+            all_snippets.append(snippet_div.get_text().strip().replace('\"', '\''))
         
         # Extract the part of speech
         ps_span = item.find('span', class_='ps')
@@ -181,7 +195,7 @@ def get_parsed_content(content):
     
     return all_words, all_snippets, all_parts_of_speech
 
-def start_parsing(starting_page, max_pages, request_delay, output_file):
+def start_parsing(starting_page, max_pages, max_retries, request_delay, error_delay, output_file, delimiter):
     '''
     Begin parsing content from a starting page and continue through subsequent pages.
 
@@ -191,23 +205,28 @@ def start_parsing(starting_page, max_pages, request_delay, output_file):
 
     Parameters:
     starting_page (int): The page number from which to start fetching and parsing content.
+    max_pages (int): The maximum number of pages to fetch before ending.
+    request_delay (int): The delay in seconds between each request.
+    error_delay (int): The delay in seconds to wait before retrying after encountering an error.
+    output_file (str): The full path of the output file, including the file name.
+    delimiter (str): The delimiter to use when saving the parsed content to the output file.
 
     Returns:
     None
     '''
     
-    # Fetch the content for the current page.
-    content = fetch_content(starting_page)
-    
     # Set the current page to the starting page.
     current_page = starting_page
     
-    # Continue processing the content from pages until there are no more pages, or an error exists
-    while content is not None:
-        # Stop after we reach the maximum number of pages to parse.
-        if current_page == max_pages:
-            break
-        
+    # Fetch the content for the current page.
+    content = fetch_content(starting_page, error_delay, max_retries)
+    
+    if content is None:
+        print(f'Failed to fetch content from initial page. Ending...')
+        return
+    
+    # Parse pages until we reach the maximum number of pages, or a fatal error occurs.
+    for i in range(max_pages):
         # Parse the content that was fetched from the webpage.
         parsed_content = get_parsed_content(content)
         
@@ -216,7 +235,7 @@ def start_parsing(starting_page, max_pages, request_delay, output_file):
             print(f'Failed to parse content from page {current_page}. Skipping and moving on...')
         else:
             # Append the parsed content to the output file.
-            save_parsed_content(output_file, parsed_content, current_page)
+            save_parsed_content(output_file, parsed_content, current_page, delimiter)
             
         # Increase the current page by one.
         current_page = current_page + 1
@@ -225,9 +244,9 @@ def start_parsing(starting_page, max_pages, request_delay, output_file):
         time.sleep(request_delay)
     
         # Fetch the content for the next page.
-        content = fetch_content(current_page)
+        content = fetch_content(current_page, error_delay, max_retries)
         
-def save_parsed_content(output_file, parsed_content, current_page):
+def save_parsed_content(output_file, parsed_content, current_page, delimiter):
     '''
     Save parsed content to an output file.
 
@@ -254,8 +273,8 @@ def save_parsed_content(output_file, parsed_content, current_page):
     
     # Iterate the length of parsed words (and snippets + parts of speech, since they're all equal).
     for i in range(len(parsed_words)):
-        # Append t current page and word data, separated by '~~' delimiter to avoid interference with characters in snippets.
-        lines.append(f'{current_page}~~{parsed_words[i]}~~{parsed_snippets[i]}~~{parsed_parts_of_speech[i]}\n')
+        # Append the current page and word data, separated by a delimiter.
+        lines.append(f'{current_page}{delimiter}{parsed_words[i]}{delimiter}{parsed_snippets[i]}{delimiter}{parsed_parts_of_speech[i]}\n')
     
     # Output the list of lines to the output file.
     with open(output_file, 'a', encoding='utf-8') as f:
