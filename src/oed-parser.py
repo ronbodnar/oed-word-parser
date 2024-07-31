@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 script_directory = os.path.dirname(os.path.abspath(__file__))
 
 # The output file path
-output_file = os.path.join(script_directory, 'output.txt')
+output_file = os.path.join(script_directory, '..', 'output.txt')
 
 # Set up a requests Session to keep the connection to the server open while making requests.
 session = requests.Session()

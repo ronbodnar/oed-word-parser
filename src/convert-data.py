@@ -1,9 +1,10 @@
 import os
 import csv
+import json
 from word import Word
 
 # Input file path.
-input_file = os.path.join(os.path.dirname(__file__), 'parsed-data.txt')
+input_file = os.path.join(os.path.dirname(__file__), '..', 'parsed-data.txt')
 
 # The list to house Word objects.
 words = {}
@@ -39,16 +40,27 @@ def populate_words():
     print(f"Found {len(words)} words, {len(no_snippet)} without snippets, {len(no_parts_of_speech)} without parts of speech")
     
 def write_csv():
-    with open(os.path.join(os.path.dirname(__file__), 'out.csv'), 'w', encoding="utf-8") as file:
-        writer = csv.writer(file)
+    with open(os.path.join(os.path.dirname(__file__), '..', 'parsed-data.csv'), 'w', encoding="utf-8") as file:
+        writer = csv.writer(file, delimiter = ',', quotechar = '"')
         
         for word in words:
             writer.writerow([words[word].text, words[word].snippet, words[word].parts_of_speech])
             
 def write_words():
-    with open(os.path.join(os.path.dirname(__file__), 'words.txt'), 'w', encoding="utf-8") as file:
+    with open(os.path.join(os.path.dirname(__file__), '..', 'parsed-data.txt'), 'w', encoding="utf-8") as file:
         file.writelines([words[word].text + '\n' for word in words])
+        
+def write_json():
+    with open(os.path.join(os.path.dirname(__file__), '..', 'parsed-data.json'), 'w', encoding="utf-8") as file:
+        file.writelines([words[word].toJSON() for word in words])
 
 populate_words()
+
+print("Writing CSV file output...")
 write_csv()
+
+print("Writing JSON file output...")
+write_json()
+
+print("Writing word text file")
 write_words()
