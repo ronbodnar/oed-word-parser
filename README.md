@@ -1,6 +1,6 @@
-# Oxford English Dictionary Word Parser/Downloader
+# Oxford English Dictionary Word Parser
 
-**Oxford English Dictionary Word Parser/Downloader** is a Python-based tool designed to scrape and parse English word data from the Oxford English Dictionary (OED) website. This project provides a robust solution for extracting and managing word-related information, including definitions, snippets, and parts of speech. It’s particularly useful for linguists, language enthusiasts, and developers working with English language datasets.
+**Oxford English Dictionary Word Parser** is a Python-based tool designed to scrape and parse English word data from the Oxford English Dictionary (OED) website. This project provides a robust solution for extracting and managing word-related information, including definitions, snippets, and parts of speech. It’s particularly useful for linguists, language enthusiasts, and developers working with English language datasets.
 
 ## Table of Contents
 
@@ -26,8 +26,8 @@ To run the script, you need to have Python 3 and the required packages installed
 1. **Clone the Repository:**
 
     ```bash
-    git clone https://github.com/ronbodnar/oed-word-parser.git
-    cd oed-word-parser
+    git clone https://github.com/ronbodnar/oxford-english-dictionary-parser.git
+    cd oxford-english-dictionary-parser
     ```
 
 2. **Install Dependencies:**
@@ -45,7 +45,7 @@ To run the script, you need to have Python 3 and the required packages installed
 Run the script using the following command:
 
 ```bash
-python oed-parser.py --request-delay 2 --max-pages 100 --starting-page 1 --output-file results.txt
+python src/oed-parser.py --output-file results.txt
 ```
 
 **Arguments:**
@@ -62,7 +62,7 @@ python oed-parser.py --request-delay 2 --max-pages 100 --starting-page 1 --outpu
 To start parsing a total of 50 pages, starting from page 1, with a delay of 1 second between requests, and save results to `parsed_data.txt`, use:
 
 ```bash
-python oed-word-parser.py --request-delay 1 --max-pages 50 --starting-page 1 --output-file parsed_data.txt
+python src/oed-parser.py --request-delay 1 --max-pages 50 --starting-page 1 --output-file parsed_data.txt
 ```
 
 ## Contributing

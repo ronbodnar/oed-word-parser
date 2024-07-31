@@ -8,3 +8,4 @@ parsed-data.txt
 
 # Ignore pycache
 __pycache__/*
+src/__pycache__/*
